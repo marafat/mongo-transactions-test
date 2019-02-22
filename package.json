@@ -1,0 +1,17 @@
+{
+  "name": "roviIngest",
+  "version": "1.0.0",
+  "main": "index.mjs",
+  "author": "Muhammad Arafat <3rafat@gmail.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "eslint": "^5.14.1"
+  },
+  "scripts": {
+    "start": "node --experimental-modules ./index.mjs"
+  },
+  "dependencies": {
+    "promise-ftp-common": "^1.1.5",
+    "promise-sftp": "^0.11.3"
+  }
+}
