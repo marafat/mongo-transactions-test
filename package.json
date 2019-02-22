@@ -1,5 +1,5 @@
 {
-  "name": "roviIngest",
+  "name": "mongo-transactions-test",
   "version": "1.0.0",
   "main": "index.mjs",
   "author": "Muhammad Arafat <3rafat@gmail.com>",
@@ -11,7 +11,6 @@
     "start": "node --experimental-modules ./index.mjs"
   },
   "dependencies": {
-    "promise-ftp-common": "^1.1.5",
-    "promise-sftp": "^0.11.3"
+    "mongoose": "^5.4.14"
   }
 }
