@@ -23,6 +23,27 @@ const transfer = async (from, to, amount) => {
   })
 };
 
+const testWriteConflict = async () => {
+  try {
+    await Promise.all([
+      transfer('A', 'B', 4),
+      transfer('A', 'B', 1)
+    ]);
+  } catch (error) {
+    console.log('Error: ', error.message); // "MongoError: WriteConflict"
+  }
+};
+
+const testTxnFuncError = async () => {
+  await transfer('A', 'B', 4); // Success
+  try {
+    // Fails because then A would have a negative balance
+    await transfer('A', 'B', 2);
+  } catch (error) {
+    console.log('Error: ', error.message); // "Insufficient funds: 1"
+  }
+};
+
 const main = async () => {
   await mongoose.connect(DB_URI, { useNewUrlParser: true });
 
@@ -35,14 +56,9 @@ const main = async () => {
   await Account.create([{ name: 'A', balance: 5 }, { name: 'B', balance: 10 }]);
   console.log(`Created Account A: $5 and Account B: $10`);
 
-  await transfer('A', 'B', 4); // Success
-  try {
-    // Fails because then A would have a negative balance
-    await transfer('A', 'B', 2);
-  } catch (error) {
-    console.log('Error: ', error.message); // "Insufficient funds: 1"
-  }
+  // await testTxnFuncError();
 
+  await testWriteConflict();
 };
 
 (async () => {
