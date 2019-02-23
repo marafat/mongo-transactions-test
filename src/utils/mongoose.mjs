@@ -9,8 +9,9 @@ const runTransactionAndCommit = async (txnFunc, session) => {
   log.info(LOG_PREFIX, 'Transaction started!');
 
   try {
-    await txnFunc(session);
+    const result = await txnFunc(session);
     await commitWithRetry(session);
+    return result;
   } catch (error) {
 
     log.info(LOG_PREFIX,'Error running or committing the transaction. Aborting...');
@@ -46,7 +47,7 @@ export const transaction = async (txnFunc) => {
   log.info(LOG_PREFIX,'Session Created!');
 
   try {
-    await runTransactionAndCommit(txnFunc, session);
+    return await runTransactionAndCommit(txnFunc, session);
   } finally {
     session.endSession();
     log.info(LOG_PREFIX,'Session Ended!');
