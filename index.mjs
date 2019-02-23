@@ -34,7 +34,7 @@ const testWriteConflict = async () => {
   }
 };
 
-const testTxnFuncError = async () => {
+const testTxnFunc = async () => {
   await transfer('A', 'B', 4); // Success
   try {
     // Fails because then A would have a negative balance
@@ -42,6 +42,10 @@ const testTxnFuncError = async () => {
   } catch (error) {
     console.log('Error: ', error.message); // "Insufficient funds: 1"
   }
+};
+
+const testTxnFuncError = () => {
+  return transfer('A', 'B', 6);
 };
 
 const main = async () => {

@@ -1,35 +1,41 @@
 import mongoose from "mongoose";
+import * as log from './log';
 
+const LOG_PREFIX = '[MONGOOSE UTILS]';
 
-const runTransactionAndRetryCommit = async (txnFunc, session) => {
+const runTransactionAndCommit = async (txnFunc, session) => {
 
   session.startTransaction();
-  console.log('Transaction started!');
+  log.info(LOG_PREFIX, 'Transaction started!');
 
   try {
     await txnFunc(session);
+    await commitWithRetry(session);
   } catch (error) {
-    console.log('txnFunc error happened');
-    await session.abortTransaction();
-    console.log('Transaction Aborted!');
-    throw error;
-  }
 
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
-    try {
-      await session.commitTransaction();
-      console.log('Transaction committed!');
-      break;
-    } catch (error) {
-      if ( error.errorLabels && error.errorLabels.includes('UnknownTransactionCommitResult') ) {
-        console.log('Unknown result upon committing a transaction, retrying...');
-      } else {
-        // The error is not re-triable
-        await session.abortTransaction();
-        console.log('Transaction Aborted!');
-        throw error;
-      }
+    log.info(LOG_PREFIX,'Error running or committing the transaction. Aborting...');
+    await session.abortTransaction();
+
+    if ( error.errorLabels && error.errorLabels.indexOf('TransientTransactionError') >= 0) {
+      log.info(LOG_PREFIX,'Transient transaction error, retrying...');
+      await runTransactionAndCommit(txnFunc, session);
+    } else {
+      throw error;
+    }
+  }
+};
+
+const commitWithRetry = async (session) => {
+  try {
+    await session.commitTransaction();
+    log.info(LOG_PREFIX, 'Transaction committed!');
+  } catch (error) {
+    if (error.errorLabels && error.errorLabels.indexOf('UnknownTransactionCommitResult') >= 0) {
+      log.info(LOG_PREFIX, 'Unknown result upon committing a transaction, retrying...');
+      await commitWithRetry(session);
+    } else {
+      log.info(LOG_PREFIX,'Error with commit...');
+      throw error;
     }
   }
 };
@@ -37,23 +43,13 @@ const runTransactionAndRetryCommit = async (txnFunc, session) => {
 export const transaction = async (txnFunc) => {
 
   const session = await mongoose.startSession();
-  console.log('Session Created!');
+  log.info(LOG_PREFIX,'Session Created!');
 
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
-    try {
-      await runTransactionAndRetryCommit(txnFunc, session);
-      session.endSession();
-      console.log('Session Ended!');
-      break;
-    } catch (error) {
-      if ( error.errorLabels && error.errorLabels.includes('TransientTransactionError') ) {
-        console.log('Transient transaction error, retrying...');
-      } else {
-        session.endSession();
-        console.log('Session Ended!');
-        throw error;
-      }
-    }
+  try {
+    await runTransactionAndCommit(txnFunc, session);
+  } finally {
+    session.endSession();
+    log.info(LOG_PREFIX,'Session Ended!');
   }
+
 };
