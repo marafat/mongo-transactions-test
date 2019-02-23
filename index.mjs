@@ -5,18 +5,21 @@ import * as mongooseUtils from "./src/utils/mongoose";
 const DB_URI = 'mongodb://127.0.0.1:27017/friends?replSet=rs0';
 
 const transfer = async (from, to, amount) => {
-  mongooseUtils.transaction(async (options) => {
-    const A = await Account.findOneAndUpdate({ name: from }, { $inc: { balance: -amount } }, options);
-    if (A.balance < 0) {
+  mongooseUtils.transaction(async (session) => {
+
+    const options = { session, new: true };
+
+    const fromAccount = await Account.findOneAndUpdate({ name: from }, { $inc: { balance: -amount } }, options);
+    if (fromAccount.balance < 0) {
       // If A would have negative balance, fail and abort the transaction
       // `session.abortTransaction()` will undo the above `findOneAndUpdate()`
-      throw new Error('Insufficient funds: ' + (A.balance + amount));
+      throw new Error('Insufficient funds: ' + (fromAccount.balance + amount));
     }
 
-    const B = await Account.findOneAndUpdate({ name: to }, { $inc: { balance: amount } }, options);
+    const toAccount = await Account.findOneAndUpdate({ name: to }, { $inc: { balance: amount } }, options);
 
     console.log(`Finished a transfer from '${from}' to '${to}' of the amount: $${amount}`);
-    console.log(`New balances: A: ${A.balance}, B: ${B.balance}`);
+    console.log(`New balances: A: ${fromAccount.balance}, B: ${toAccount.balance}`);
   })
 };
 
@@ -26,6 +29,7 @@ const main = async () => {
   console.log('Connected to database!!');
 
   await Account.deleteMany();
+  console.log('Deleted all previous accounts!');
 
   // Insert accounts and transfer some money
   await Account.create([{ name: 'A', balance: 5 }, { name: 'B', balance: 10 }]);
@@ -42,6 +46,9 @@ const main = async () => {
 };
 
 (async () => {
-  await main();
-  process.exit(0);
+  try {
+    await main();
+  } catch (e) {
+    console.log('main had an error: ', e.message);
+  }
 })();

@@ -1,47 +1,59 @@
 import mongoose from "mongoose";
 
 
-const runTransactionAndRetryCommit = async (mutator) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
+const runTransactionAndRetryCommit = async (txnFunc, session) => {
 
-  const options = { session };
-  await mutator(options);
+  session.startTransaction();
+  console.log('Transaction started!');
+
+  try {
+    await txnFunc(session);
+  } catch (error) {
+    console.log('txnFunc error happened');
+    await session.abortTransaction();
+    console.log('Transaction Aborted!');
+    throw error;
+  }
 
   // eslint-disable-next-line no-constant-condition
   while (true) {
     try {
       await session.commitTransaction();
-      session.endSession();
+      console.log('Transaction committed!');
       break;
-    } catch (e) {
-      // todo catch OperationFailure, ConnectionFailure error types
-      if (e.message.includes('UnknownTransactionCommitResult')) {
+    } catch (error) {
+      if ( error.errorLabels && error.errorLabels.includes('UnknownTransactionCommitResult') ) {
         console.log('Unknown result upon committing a transaction, retrying...');
-        continue;
+      } else {
+        // The error is not re-triable
+        await session.abortTransaction();
+        console.log('Transaction Aborted!');
+        throw error;
       }
-
-      // The error is not re-triable
-      await session.abortTransaction();
-      session.endSession();
-      throw e;
     }
   }
 };
 
-export const transaction = (mutator) => {
+export const transaction = async (txnFunc) => {
+
+  const session = await mongoose.startSession();
+  console.log('Session Created!');
 
   // eslint-disable-next-line no-constant-condition
   while (true) {
     try {
-      return runTransactionAndRetryCommit(mutator);
-    } catch (e) {
-      // todo catch OperationFailure, ConnectionFailure error types
-      if (e.message.includes('TransientTransactionError')) {
+      await runTransactionAndRetryCommit(txnFunc, session);
+      session.endSession();
+      console.log('Session Ended!');
+      break;
+    } catch (error) {
+      if ( error.errorLabels && error.errorLabels.includes('TransientTransactionError') ) {
         console.log('Transient transaction error, retrying...');
-        continue;
+      } else {
+        session.endSession();
+        console.log('Session Ended!');
+        throw error;
       }
-      throw e;
     }
   }
 };
