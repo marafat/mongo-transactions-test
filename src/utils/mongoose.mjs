@@ -41,7 +41,7 @@ const commitWithRetry = async (session) => {
   }
 };
 
-export const transaction = async (txnFunc) => {
+export const txnWithDbSession = async (txnFunc) => {
 
   const session = await mongoose.startSession();
   log.info(LOG_PREFIX,'Session Created!');

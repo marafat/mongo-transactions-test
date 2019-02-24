@@ -1,11 +1,11 @@
 import mongoose from "mongoose";
 import Account from "./src/models/Account";
-import * as mongooseUtils from "./src/utils/mongoose";
+import { txnWithDbSession } from "./src/utils/mongoose";
 
 const DB_URI = 'mongodb://127.0.0.1:27017/friends?replSet=rs0';
 
 const transfer = async (from, to, amount) => {
-  const result = await mongooseUtils.transaction(async (session) => {
+  const result = await txnWithDbSession(async (session) => {
 
     const options = { session, new: true };
 

@@ -1,0 +1,21 @@
+version: '3.3'
+
+volumes:
+  mongo:
+    driver: local
+
+services:
+  mongo:
+    build:
+      context: .
+      dockerfile: ./Dockerfile-mongo
+    environment:
+    - MONGO_HOST=mongo:27017
+    # This is required in order to find the internal container IP from inside it
+    hostname: mongo
+    command: mongod --replSet rs0
+    ports:
+    - "27017:27017"
+    volumes:
+    - mongo:/data/db
+    - ./bin/mongo-replset-init.sh:/docker-entrypoint-initdb.d/mongo-replset-init.sh
