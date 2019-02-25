@@ -19,10 +19,10 @@ const runTransactionAndCommit = async (txnFunc, session) => {
 
     if ( error.errorLabels && error.errorLabels.indexOf('TransientTransactionError') >= 0) {
       log.info(LOG_PREFIX,'Transient transaction error, retrying...');
-      await runTransactionAndCommit(txnFunc, session);
-    } else {
-      throw error;
+      return runTransactionAndCommit(txnFunc, dbSession);
     }
+
+    throw error;
   }
 };
 
