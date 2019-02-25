@@ -3,19 +3,19 @@ import * as log from './log';
 
 const LOG_PREFIX = '[MONGOOSE UTILS]';
 
-const runTransactionAndCommit = async (txnFunc, session) => {
+const runTransactionAndCommit = async (txnFunc, dbSession) => {
 
-  session.startTransaction();
+  dbSession.startTransaction();
   log.info(LOG_PREFIX, 'Transaction started!');
 
   try {
-    const result = await txnFunc(session);
-    await commitWithRetry(session);
+    const result = await txnFunc(dbSession);
+    await commitWithRetry(dbSession);
     return result;
   } catch (error) {
 
     log.info(LOG_PREFIX,'Error running or committing the transaction. Aborting...');
-    await session.abortTransaction();
+    await dbSession.abortTransaction();
 
     if ( error.errorLabels && error.errorLabels.indexOf('TransientTransactionError') >= 0) {
       log.info(LOG_PREFIX,'Transient transaction error, retrying...');
@@ -26,14 +26,14 @@ const runTransactionAndCommit = async (txnFunc, session) => {
   }
 };
 
-const commitWithRetry = async (session) => {
+const commitWithRetry = async (dbSession) => {
   try {
-    await session.commitTransaction();
+    await dbSession.commitTransaction();
     log.info(LOG_PREFIX, 'Transaction committed!');
   } catch (error) {
     if (error.errorLabels && error.errorLabels.indexOf('UnknownTransactionCommitResult') >= 0) {
       log.info(LOG_PREFIX, 'Unknown result upon committing a transaction, retrying...');
-      await commitWithRetry(session);
+      await commitWithRetry(dbSession);
     } else {
       log.info(LOG_PREFIX,'Error with commit...');
       throw error;
@@ -41,15 +41,15 @@ const commitWithRetry = async (session) => {
   }
 };
 
-export const txnWithDbSession = async (txnFunc) => {
+export const transaction = async (txnFunc) => {
 
-  const session = await mongoose.startSession();
+  const dbSession = await mongoose.startSession();
   log.info(LOG_PREFIX,'Session Created!');
 
   try {
-    return await runTransactionAndCommit(txnFunc, session);
+    return await runTransactionAndCommit(txnFunc, dbSession);
   } finally {
-    session.endSession();
+    dbSession.endSession();
     log.info(LOG_PREFIX,'Session Ended!');
   }
 
